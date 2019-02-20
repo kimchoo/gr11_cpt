@@ -1,1 +1,3 @@
-
+def compile():
+  
+compile()
