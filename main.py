@@ -5,8 +5,7 @@ import scipy.interpolate
 import pygame
 import math
 
-resize_factor = 75
-block_loading_size = 1500
+resize_factor = 45
 width = 1920   
 height = 1080
 
@@ -14,8 +13,14 @@ height = 1080
 def lerp(p, p1, factor):
     return ((p1 - p) * factor)
 
-def distance(x,y,x1,y1):
-    return math.sqrt(((x-x1)**2) +((y-y1)**2))
+distance = lambda x, y, x1, y1 : math.sqrt(((x-x1)**2) +((y-y1)**2))
+
+def inrange(p,e):
+
+    if p >= 0 and p < e: 
+        return True
+    else:
+        return False
 
 class point:
     def __init__(self,x,y):
@@ -24,45 +29,35 @@ class point:
 
 class chunck:
     def __init__(self, ar):
-        self.dimensions = 10
-        self.ar = ar    #Post initialization this var becomes the filled chuncks ar
+        self.dimensions = 25
+        self.point_ar = ar
+        self.ar = []
         self.player_pos = point(None,None)
+        self.draw_distance = 1
 
-        self.perf_div = {"row": None, "column": None}
+        if len(self.point_ar) % self.dimensions == 0:
+            self.c_ar_height = len(self.point_ar) // self.dimensions
 
-    def gen_chuncks(self, ar):
+        else:
+            self.c_ar_height = len(self.point_ar) // self.dimensions +1
 
-      rtn_ar = []
+        if len(self.point_ar[0]) % self.dimensions == 0 :
+            self.c_ar_width = len(self.point_ar[0]) // self.dimensions
 
-      if len(ar) % self.dimensions == 0:
-        c_ar_height = len(ar) // self.dimensions + 1
-        self.perf_div["row"] = False
+        else:
+            self.c_ar_width = len(self.point_ar[0]) // self.dimensions +1
+
+        for r in range(0, self.c_ar_height):
+            self.ar.append([])
+
+            for c in range(0, self.c_ar_width):
+                self.ar[r].append([])
+
+    def current_multiple(self, val):
+      if val % self.dimensions == 0:
+        return val // self.dimensions
       else:
-        c_ar_height = len(ar) // self.dimensions
-        self.perf_div["row"] = True
-
-      if len(ar[0]) % self.dimensions == 0 :
-        c_ar_width = len(ar) // self.dimensions + 1
-        self.perf_div["column"] = False
-      else:
-        c_ar_width = len(ar) // self.dimensions
-        self.perf_div["column"] = True
-
-      for r in range(0, c_ar_height):
-        rtn_ar.append([])
-
-        for c in range(0, c_ar_width):
-          rtn_ar[r].append([])
-
-      return rtn_ar
-
-    def current_multiple(self,value):
-
-      if value % self.dimensions == 0:
-        return value // self.dimensions
-
-      else:
-        return value // self.dimensions +1 
+        return val // self.dimensions +1 
 
     def extrapol_pos(self, chunck_r, chunck_c, r, c):
         x = chunck_c * self.dimensions + c
@@ -70,19 +65,23 @@ class chunck:
 
         return point(x,y)
 
-    def filled(self):
+    def draw(self, player_chunck_y, player_chunck_x):
+        for thread_point in range(len(self.ar[player_chunck_y][player_chunck_x])):
+            y_pos = thread_point // self.dimensions
+            x_pos = thread_point % self.dimensions
 
-        ar = self.gen_chuncks(self.ar)
+            block_pos = self.extrapol_pos(player_chunck_y, player_chunck_x, x_pos , y_pos)
+            gameworld.draw_block(self.point_ar[block_pos.y][block_pos.x], block_pos.x, block_pos.y)
 
-        for r in range(0, len(ar)):
-            c_counter = self.current_multiple(r)
+    def fill(self):
 
-            for c in range(0, len(ar[0])):
-                r_counter = self.current_multiple(c)
+        for r in range(0, len(self.point_ar)):
+            r_segment = self.current_multiple(r)
 
-                ar[r_counter][c_counter].append(ar[r][c])
-                print ar[r][c]
-        return(ar)
+            for c in range(0, len(self.point_ar[0])):
+                c_segment = self.current_multiple(c)
+
+                self.ar[r_segment -1][c_segment -1].append(self.point_ar[r][c])
 
 class camera:
     def __init__(self,x,y):
@@ -122,17 +121,36 @@ class terrain:
             self.smooth_terrain()
 
     def draw(self):
-        for chunck_r in range(0,len(chuncks.ar)):
-            for chunck_c in range(0, len(chuncks.ar[chunck_r])):
-                pos = chuncks.extrapol_pos(chunck_r, chunck_c, 0, 0)
 
-                #if distance(player.x, player.y, pos.x, pos.y) <= 10:
-                print chuncks.ar[chunck_r]
-                for r in range(0, len(chuncks.ar[chunck_r][chunck_c])):
-                    
-                    for c in range(0, len(chuncks.ar[chunck_r][chunck_c][r])):
-                        block_pos = chuncks.extrapol_pos(chunck_r, chunck_c, r , c)
-                        self.draw_block(self.point_ar[block_pos.y][block_pos.x][r][c], block_pos.x, block_pos.y)
+        player_chunck_x = player.x // resize_factor // chuncks.dimensions
+        player_chunck_y = player.y // resize_factor // chuncks.dimensions
+
+        if inrange(player_chunck_x, chuncks.c_ar_width) and inrange(player_chunck_y, chuncks.c_ar_height): #PLAYER POS
+            chuncks.draw(player_chunck_y, player_chunck_x)
+
+        if inrange(player_chunck_x, chuncks.c_ar_width) and inrange(player_chunck_y + chuncks.draw_distance, chuncks.c_ar_height): #NORTH
+            chuncks.draw(player_chunck_y + chuncks.draw_distance, player_chunck_x)
+
+        if inrange(player_chunck_x, chuncks.c_ar_width) and inrange(player_chunck_y - chuncks.draw_distance, chuncks.c_ar_height): #SOUTH
+            chuncks.draw(player_chunck_y - chuncks.draw_distance, player_chunck_x)
+
+        if inrange(player_chunck_x + chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y, chuncks.c_ar_height): #EAST
+            chuncks.draw(player_chunck_y, player_chunck_x + chuncks.draw_distance)
+
+        if inrange(player_chunck_x - chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y, chuncks.c_ar_height): #WEST
+            chuncks.draw(player_chunck_y, player_chunck_x - chuncks.draw_distance)
+
+        if inrange(player_chunck_x - chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y + chuncks.draw_distance, chuncks.c_ar_height): #NORTH-WEST
+            chuncks.draw(player_chunck_y + chuncks.draw_distance, player_chunck_x - chuncks.draw_distance)
+
+        if inrange(player_chunck_x + chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y + chuncks.draw_distance, chuncks.c_ar_height): #NORTH-EAST
+            chuncks.draw(player_chunck_y + chuncks.draw_distance, player_chunck_x + chuncks.draw_distance)
+
+        if inrange(player_chunck_x - chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y - chuncks.draw_distance, chuncks.c_ar_height): #SOUTH-WEST
+            chuncks.draw(player_chunck_y - chuncks.draw_distance, player_chunck_x - chuncks.draw_distance)
+
+        if inrange(player_chunck_x - chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y - chuncks.draw_distance, chuncks.c_ar_height): #SOUTH-EAST
+            chuncks.draw(player_chunck_y - chuncks.draw_distance, player_chunck_x + chuncks.draw_distance)
 
     def draw_block(self, b_type, x, y):
         world_point = point(x * resize_factor,y * resize_factor)
@@ -192,7 +210,7 @@ flags = DOUBLEBUF
 screen = pygame.display.set_mode((width,height), flags)
 screen.set_alpha(None)
 clock = pygame.time.Clock()
-clock.tick(1000)
+#clock.tick(60)
 
 cam = camera(0,0)
 player = point(100,100)
@@ -211,7 +229,7 @@ while __run__ == True:   #Menu Session
     player_input.update()
 
     if player_input.g == True:
-        gameworld = terrain(100, 100, False, None) #width, height
+        gameworld = terrain(200, 200, False, None) #width, height
         f_manager.create_save_file(gameworld.point_ar)
         break
     if player_input.h == True:
@@ -219,7 +237,7 @@ while __run__ == True:   #Menu Session
         break
 
 chuncks = chunck(gameworld.point_ar)
-chuncks.ar = chuncks.filled()
+chuncks.fill()
 
 while __run__ == True:   #Game session
     for event in pygame.event.get():  
@@ -227,7 +245,6 @@ while __run__ == True:   #Game session
             pygame.quit()
 
     player_input.update() 
-
     if player_input.a:
         player.x -= speed
     if player_input.d:
@@ -236,6 +253,8 @@ while __run__ == True:   #Game session
         player.y += speed
     if player_input.s:
         player.y -= speed
+    clock.tick(1000)
+    print clock.get_fps()
 
     screen_point = cam.world_screen(player)
     pygame.draw.rect(screen, (255,255,255),((screen_point.x, screen_point.y),(10,10)))
