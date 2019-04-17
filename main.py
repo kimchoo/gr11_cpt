@@ -149,7 +149,7 @@ class terrain:
         if inrange(player_chunck_x - chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y - chuncks.draw_distance, chuncks.c_ar_height): #SOUTH-WEST
             chuncks.draw(player_chunck_y - chuncks.draw_distance, player_chunck_x - chuncks.draw_distance)
 
-        if inrange(player_chunck_x - chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y - chuncks.draw_distance, chuncks.c_ar_height): #SOUTH-EAST
+        if inrange(player_chunck_x + chuncks.draw_distance, chuncks.c_ar_width) and inrange(player_chunck_y - chuncks.draw_distance, chuncks.c_ar_height): #SOUTH-EAST
             chuncks.draw(player_chunck_y - chuncks.draw_distance, player_chunck_x + chuncks.draw_distance)
 
     def draw_block(self, b_type, x, y):
